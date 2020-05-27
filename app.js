@@ -13,7 +13,7 @@ let productsLinks = [];
 const saveToCsv = () => new Promise(async (resolve, reject) => {
   try {
     // Save Header
-    const fileName = `result ${moment().format('DD-MM-YYYY HH-mm')}.csv`
+    const fileName = `results ${moment().format('DD-MM-YYYY HH-mm')}.csv`
     const requiredFields = ['Sistema operativo OS', 'Chipset', 'Processore CPU', 'Processore grafico GPU', 'Memoria esterna', 'Memoria Interna', 'Data di uscita', 'Dimensioni (AxLxP)', 'Peso', 'Corpo', 'Colori', 'Batteria', 'Prezzo approssimativo', 'Scheda SIM', 'Rete', 'Velocità', 'GPRS', 'Edge', 'Wi-Fi', 'GPS', 'NFC', 'USB', 'Bluetooth', 'Radio', 'Jack per cuffie', 'Tecnologia', 'Touch screen', 'Profondità dei colori', 'Dimensioni', 'Area dello schermo', 'Formato', 'Rapporto schermo / corpo', 'Risoluzione', 'Densità Pixel', 'Fotocamera posteriore, base', 'Caratteristiche tecniche', 'Funzioni', 'Video', 'Fotocamera frontale, selfie', 'Specificazioni', 'Funzioni'];
     let csvHeader = '"URL",';
     for (let i = 0; i < requiredFields.length; i++) {
