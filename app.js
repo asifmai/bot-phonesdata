@@ -14,10 +14,10 @@ const saveToCsv = () => new Promise(async (resolve, reject) => {
   try {
     // Save Header
     const fileName = `results ${moment().format('DD-MM-YYYY HH-mm')}.csv`
-    const requiredFields = ['Sistema operativo OS', 'Chipset', 'Processore CPU', 'Processore grafico GPU', 'Memoria esterna', 'Memoria Interna', 'Data di uscita', 'Dimensioni (AxLxP)', 'Peso', 'Corpo', 'Colori', 'Batteria', 'Prezzo approssimativo', 'Scheda SIM', 'Rete', 'Velocità', 'GPRS', 'Edge', 'Wi-Fi', 'GPS', 'NFC', 'USB', 'Bluetooth', 'Radio', 'Jack per cuffie', 'Tecnologia', 'Touch screen', 'Profondità dei colori', 'Dimensioni', 'Area dello schermo', 'Formato', 'Rapporto schermo / corpo', 'Risoluzione', 'Densità Pixel', 'Fotocamera posteriore, base', 'Caratteristiche tecniche', 'Funzioni', 'Video', 'Fotocamera frontale, selfie', 'Specificazioni', 'Funzioni'];
+    const requiredFields = ['Brand','Model','Sensori','Sistema operativo OS', 'Chipset', 'Processore CPU', 'Processore grafico GPU', 'Memoria esterna', 'Memoria Interna', 'Data di uscita', 'Dimensioni (AxLxP)', 'Peso', 'Corpo', 'Colori', 'Batteria', 'Prezzo approssimativo', 'Scheda SIM', 'Rete', 'Velocità', 'GPRS', 'Edge', 'Wi-Fi', 'GPS', 'NFC', 'USB', 'Bluetooth', 'Radio', 'Jack per cuffie', 'Tecnologia', 'Touch screen', 'Profondità dei colori', 'Dimensioni', 'Area dello schermo', 'Formato', 'Rapporto schermo / corpo', 'Risoluzione', 'Densità Pixel', 'Fotocamera posteriore, base', 'Caratteristiche tecniche', 'Funzioni', 'Video', 'Fotocamera frontale, selfie', 'Specificazioni', 'Funzioni'];
     let csvHeader = '"URL",';
     for (let i = 0; i < requiredFields.length; i++) {
-      if (i !== requiredFields.length - 1) {
+      if (i != requiredFields.length - 1) {
         csvHeader+= `"${requiredFields[i]}",`;
       } else {
         csvHeader+= `"${requiredFields[i]}"\r\n`;
@@ -30,7 +30,7 @@ const saveToCsv = () => new Promise(async (resolve, reject) => {
       let csvLine = `"${products[i].url}"`;
       for (let j = 0; j < requiredFields.length; j++) {
         if (products[i][requiredFields[j].toLowerCase()]) {
-          csvLine += `,"${products[i][requiredFields[j].toLowerCase()]}"`;
+          csvLine += `,"${products[i][requiredFields[j].toLowerCase()].replace(/\"/gi, "'").trim().replace(/^\-/gi, '').trim()}"`;
         } else {
           csvLine += ',""'
         }
@@ -52,10 +52,6 @@ const fetchFromBrand = () => new Promise(async (resolve, reject) => {
 
     // Launch the Browser
     browser = await pupHelper.launchBrowser();
-    // browser.on('disconnected', async () => {
-    //   browser = false;
-    //   browser = await pupHelper.launchBrowser();
-    // });
 
     // Fetch Products Links for Brand
     console.log(`Fetching Products Links from Brand[${brandLink}]...`);
@@ -116,6 +112,10 @@ const fetchProduct = (productLink, current, total) => new Promise(async (resolve
 
     const trs = await page.$$('.datasheet.table tr');
     for (let i = 0; i < trs.length; i++) {
+      const trText = await page.evaluate(elm => elm.innerText.trim(), trs[i]);
+      if (trText.toLowerCase().startsWith('- sensori')) {
+        prod.sensori = trText.replace(/\- sensori \-/gi, '').trim()
+      }
       const isProp = await trs[i].$('td.datasheet-features-type');
       if (isProp) {
         const propLabel = await trs[i].$eval('td.datasheet-features-type', elm => elm.innerText.toLowerCase());
@@ -129,6 +129,8 @@ const fetchProduct = (productLink, current, total) => new Promise(async (resolve
         prod[propLabel] = propValue;
       }
     }
+    prod.brand = await pupHelper.getTxt('ul.breadcrumb > li:nth-last-child(2) span', page);
+    prod.model = await pupHelper.getTxt('ul.breadcrumb > li:last-child span', page);
     
     products.push(prod);
     await page.close();
@@ -140,8 +142,64 @@ const fetchProduct = (productLink, current, total) => new Promise(async (resolve
   }
 });
 
+const fetchNewPhones = () => new Promise(async (resolve, reject) => {
+  try {
+    console.log('Started Scraping...');
+
+    // Launch the Browser
+    browser = await pupHelper.launchBrowser();
+
+    // Fetch Products Links for Brand
+    console.log(`Fetching New Products Links...`);
+    productsLinks = await fetchLinksNewPhone();
+    productsLinks = _.uniq(productsLinks);
+    console.log(`Number of New Products found: ${productsLinks.length}`);
+    fs.writeFileSync('productsLinks.json', JSON.stringify(productsLinks));
+
+    // Fetch Products Details for Brand
+    console.log('Fetching Products Details...');
+    const limit = pLimit(5);
+    const promises = [];
+    for (let i = 0; i < productsLinks.length; i++) {
+      promises.push(limit(() => fetchProduct(productsLinks[i], i + 1, productsLinks.length)));
+    }
+    await Promise.all(promises);
+    fs.writeFileSync('products.json', JSON.stringify(products));
+
+    // Save Results to Csv
+    console.log('Writing Csv...');
+    await saveToCsv();
+    
+    console.log('Finished Scraping...');
+    await browser.close();
+    resolve(true);
+  } catch (error) {
+    if (browser) await browser.close();
+    console.log(`fetchNewPhones Error: ${error.message}`);
+    reject(error);
+  }
+});
+
+const fetchLinksNewPhone = () => new Promise(async (resolve, reject) => {
+  let page;
+  try {
+    page = await pupHelper.launchPage(browser);
+    await page.goto(newLink, {timeout: 0, waitUntil: 'load'});
+    await page.waitForSelector('.two-items-bottom-items .owl-wrapper > .owl-item .pi-img-wrapper > a');
+    const productsLinks = await pupHelper.getAttrMultiple('.two-items-bottom-items .owl-wrapper > .owl-item .pi-img-wrapper > a', 'href', page);
+
+    await page.close();
+    resolve(productsLinks);
+  } catch (error) {
+    if (page) await page.close();
+    console.log(`fetchLinksNewPhone [${brandLink}] Error: `, error.message);
+    reject(error);
+  }
+});
+
 (async () => {
   
-  await fetchFromBrand();
+  // await fetchFromBrand();
+  await fetchNewPhones();
   
 })()
