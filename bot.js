@@ -6,9 +6,7 @@ const moment = require('moment');
 const {brandLink, newLink} = require('./keys');
 let browser;
 let products = [];
-// let products = JSON.parse(fs.readFileSync('products.json', 'utf8'));
 let productsLinks = [];
-// let productsLinks = JSON.parse(fs.readFileSync('productsLinks.json', 'utf8'));
 
 const saveToCsv = (feature) => new Promise(async (resolve, reject) => {
   try {
