@@ -10,10 +10,10 @@ let products = [];
 let productsLinks = [];
 // let productsLinks = JSON.parse(fs.readFileSync('productsLinks.json', 'utf8'));
 
-const saveToCsv = () => new Promise(async (resolve, reject) => {
+const saveToCsv = (feature) => new Promise(async (resolve, reject) => {
   try {
     // Save Header
-    const fileName = `results ${moment().format('DD-MM-YYYY HH-mm')}.csv`
+    const fileName = `results-${feature} ${moment().format('DD-MM-YYYY HH-mm')}.csv`
     const requiredFields = ['Brand','Model','Sensori','Sistema operativo OS', 'Chipset', 'Processore CPU', 'Processore grafico GPU', 'Memoria esterna', 'Memoria Interna', 'Data di uscita', 'Dimensioni (AxLxP)', 'Peso', 'Corpo', 'Colori', 'Batteria', 'Prezzo approssimativo', 'Scheda SIM', 'Rete', 'Velocità', 'GPRS', 'Edge', 'Wi-Fi', 'GPS', 'NFC', 'USB', 'Bluetooth', 'Radio', 'Jack per cuffie', 'Tecnologia', 'Touch screen', 'Profondità dei colori', 'Dimensioni', 'Area dello schermo', 'Formato', 'Rapporto schermo / corpo', 'Risoluzione', 'Densità Pixel', 'Fotocamera posteriore, base', 'Caratteristiche tecniche', 'Funzioni', 'Video', 'Fotocamera frontale, selfie', 'Specificazioni', 'Funzioni'];
     let csvHeader = '"URL",';
     for (let i = 0; i < requiredFields.length; i++) {
@@ -46,7 +46,7 @@ const saveToCsv = () => new Promise(async (resolve, reject) => {
   }
 })
 
-const fetchFromBrand = () => new Promise(async (resolve, reject) => {
+const fetchFromBrand = (feature) => new Promise(async (resolve, reject) => {
   try {
     console.log('Started Scraping...');
 
@@ -54,7 +54,7 @@ const fetchFromBrand = () => new Promise(async (resolve, reject) => {
     browser = await pupHelper.launchBrowser();
 
     // Fetch Products Links for Brand
-    console.log(`Fetching Products Links from Brand[${brandLink}]...`);
+    console.log(`Fetching Products Links from Brand [${brandLink}]...`);
     productsLinks = await fetchLinksFromBrand();
     productsLinks = _.uniq(productsLinks);
     console.log(`Number of Products found for Brand: ${productsLinks.length}`);
@@ -72,7 +72,7 @@ const fetchFromBrand = () => new Promise(async (resolve, reject) => {
 
     // Save Results to Csv
     console.log('Writing Csv...');
-    await saveToCsv();
+    await saveToCsv(feature);
     
     console.log('Finished Scraping...');
     await browser.close();
@@ -142,7 +142,7 @@ const fetchProduct = (productLink, current, total) => new Promise(async (resolve
   }
 });
 
-const fetchNewPhones = () => new Promise(async (resolve, reject) => {
+const fetchNewPhones = (feature) => new Promise(async (resolve, reject) => {
   try {
     console.log('Started Scraping...');
 
@@ -168,7 +168,7 @@ const fetchNewPhones = () => new Promise(async (resolve, reject) => {
 
     // Save Results to Csv
     console.log('Writing Csv...');
-    await saveToCsv();
+    await saveToCsv(feature);
     
     console.log('Finished Scraping...');
     await browser.close();
@@ -198,8 +198,16 @@ const fetchLinksNewPhone = () => new Promise(async (resolve, reject) => {
 });
 
 (async () => {
-  
-  // await fetchFromBrand();
-  await fetchNewPhones();
-  
+  const feature = process.argv[2];
+  if (feature) {
+    if (feature.toLowerCase() == 'new') {
+      await fetchNewPhones(feature);
+    } else if (feature.toLowerCase() == 'brand') {
+      await fetchFromBrand(feature);
+    } else {
+      console.log('Please provide correct parameters with command "node bot new" or "node bot brand"');
+    }
+  } else {
+    console.log('Please provide correct parameters with command "node bot new" or "node bot brand"');
+  }
 })()
